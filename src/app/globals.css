@@ -117,6 +117,21 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes float-up {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -56px;
+  }
+}
+
+.float-up {
+  animation: float-up 0.9s ease-out forwards;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

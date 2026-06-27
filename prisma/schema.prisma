@@ -11,3 +11,8 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Counter {
+  id     String @id @default("global")
+  clicks Int    @default(0)
+}

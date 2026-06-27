@@ -1,65 +1,143 @@
+"use client";
+
+import { useState, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 
+interface FloatItem {
+  id: number;
+  x: number;
+  y: number;
+}
+
 export default function Home() {
+  const [clicks, setClicks] = useState(0);
+  // 0 = egg01 (default), 1 = egg02, 2 = egg03 — toggles between 1 & 2 after first click
+  const [eggIndex, setEggIndex] = useState(0);
+  const [squish, setSquish] = useState(false);
+  const [floats, setFloats] = useState<FloatItem[]>([]);
+
+  const pendingRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // โหลด total clicks จาก DB เมื่อหน้าเปิด
+  useEffect(() => {
+    fetch("/api/clicks")
+      .then((r) => r.json())
+      .then((d) => setClicks(d.clicks));
+  }, []);
+
+  // flush pending clicks ไปที่ API (เรียกหลัง click หยุด 300ms)
+  const flush = useCallback(() => {
+    if (pendingRef.current === 0) return;
+    const amount = pendingRef.current;
+    pendingRef.current = 0;
+    fetch("/api/clicks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    });
+  }, []);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    setClicks((c) => c + 1);
+    setEggIndex((i) => (i === 0 ? 1 : i === 1 ? 2 : 1));
+
+    setSquish(true);
+    setTimeout(() => setSquish(false), 120);
+
+    const id = Date.now() + Math.random();
+    setFloats((f) => [...f, { id, x, y }]);
+    setTimeout(() => setFloats((f) => f.filter((n) => n.id !== id)), 900);
+
+    // batch API call — debounce 300ms
+    pendingRef.current += 1;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(flush, 300);
+  }, [flush]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+    <div className="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
+      {/* Portrait game container — all images share the same canvas so they stack perfectly */}
+      <div
+        className="relative select-none cursor-pointer overflow-hidden"
+        style={{ width: "min(75vh, 100vw)", aspectRatio: "3 / 4" }}
+        onClick={handleClick}
+      >
+        {/* Layer 0 — Background */}
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
+          src="/egg/background00.png"
+          alt=""
+          fill
+          style={{ objectFit: "fill" }}
           priority
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+
+        {/* Layer 1 — "MYSTERY EGG" logo */}
+        <Image
+          src="/egg/playlogo.PNG"
+          alt="Mystery Egg"
+          fill
+          style={{ objectFit: "fill" }}
+          priority
+        />
+
+        {/* Layer 2 — Egg (all 3 always mounted to prevent loading flash, switch with opacity) */}
+        {["/egg/egg01.PNG", "/egg/egg02.PNG", "/egg/egg03.PNG"].map((src, i) => (
+          <div
+            key={src}
+            className="absolute inset-0"
+            style={{
+              opacity: eggIndex === i ? 1 : 0,
+              transform: eggIndex === i && squish ? "scale(0.94) translateY(2%)" : "scale(1)",
+              transition: squish ? "opacity 0s" : "transform 0.15s ease-out",
+            }}
+          >
+            <Image src={src} alt="" fill style={{ objectFit: "fill" }} priority />
+          </div>
+        ))}
+
+        {/* Layer 3 — "CLICK TO HATCH" button overlay */}
+        <Image
+          src="/egg/instruct.PNG"
+          alt="Click to Hatch"
+          fill
+          style={{ objectFit: "fill" }}
+        />
+
+        {/* Click counter */}
+        <div className="absolute inset-x-0 z-20 text-center pointer-events-none" style={{ top: "100px" }}>
+          <p
+            className="font-black text-5xl"
+            style={{
+              color: "#00ff88",
+              textShadow: "0 0 24px rgba(0,255,100,1), 0 0 8px rgba(0,255,100,0.6), 0 2px 6px rgba(0,0,0,0.9)",
+            }}
+          >
+            {clicks.toLocaleString()}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Floating +1 numbers */}
+        {floats.map((f) => (
+          <div
+            key={f.id}
+            className="absolute z-30 pointer-events-none font-bold text-xl float-up"
+            style={{
+              left: `${f.x}%`,
+              top: `${f.y}%`,
+              transform: "translate(-50%, -50%)",
+              color: "#fde047",
+              textShadow: "0 2px 6px rgba(0,0,0,0.8)",
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+            +1
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
