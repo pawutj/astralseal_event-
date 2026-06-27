@@ -46,7 +46,7 @@ export default function Home() {
     setClicks((c) => c + 1);
     setEggIndex((i) => (i === 0 ? 1 : i === 1 ? 2 : 1));
 
-    setSquish(true);
+    setSquish(false);
     setTimeout(() => setSquish(false), 120);
 
     const id = Date.now() + Math.random();
