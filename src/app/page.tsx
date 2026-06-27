@@ -9,6 +9,8 @@ interface FloatItem {
   y: number;
 }
 
+const TOTAL = 10_000;
+
 export default function Home() {
   const [clicks, setClicks] = useState(0);
   // 0 = egg01 (default), 1 = egg02, 2 = egg03 — toggles between 1 & 2 after first click
@@ -38,13 +40,21 @@ export default function Home() {
     });
   }, []);
 
+  const remaining = Math.max(0, TOTAL - clicks);
+  const isFinished = remaining === 0;
+
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (isFinished) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    setClicks((c) => c + 1);
-    setEggIndex((i) => (i === 0 ? 1 : i === 1 ? 2 : 1));
+    setClicks((c) => Math.min(c + 1, TOTAL));
+    setEggIndex((i) => {
+      if (clicks < 5000) return i === 0 ? 1 : 0; // toggle egg01↔egg02
+      return i === 1 ? 2 : 1;                     // toggle egg02↔egg03
+    });
 
     setSquish(false);
     setTimeout(() => setSquish(false), 120);
@@ -57,7 +67,20 @@ export default function Home() {
     pendingRef.current += 1;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(flush, 300);
-  }, [flush]);
+  }, [flush, isFinished]);
+
+  if (isFinished) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
+        <div
+          className="relative select-none overflow-hidden"
+          style={{ width: "min(75vh, 100vw)", aspectRatio: "3 / 4" }}
+        >
+          <Image src="/egg/congrats.PNG" alt="Congratulations!" fill style={{ objectFit: "fill" }} priority />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-screen h-screen flex items-center justify-center bg-black overflow-hidden">
@@ -108,7 +131,7 @@ export default function Home() {
           style={{ objectFit: "fill" }}
         />
 
-        {/* Click counter */}
+        {/* Click counter — counts down from 10,000 */}
         <div className="absolute inset-x-0 z-20 text-center pointer-events-none" style={{ top: "100px" }}>
           <p
             className="font-black text-5xl"
@@ -117,11 +140,11 @@ export default function Home() {
               textShadow: "0 0 24px rgba(0,255,100,1), 0 0 8px rgba(0,255,100,0.6), 0 2px 6px rgba(0,0,0,0.9)",
             }}
           >
-            {clicks.toLocaleString()}
+            {remaining.toLocaleString()}
           </p>
         </div>
 
-        {/* Floating +1 numbers */}
+        {/* Floating -1 numbers */}
         {floats.map((f) => (
           <div
             key={f.id}
@@ -134,7 +157,7 @@ export default function Home() {
               textShadow: "0 2px 6px rgba(0,0,0,0.8)",
             }}
           >
-            +1
+            -1
           </div>
         ))}
       </div>
