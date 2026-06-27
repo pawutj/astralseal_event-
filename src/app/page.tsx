@@ -51,10 +51,11 @@ export default function Home() {
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
     setClicks((c) => Math.min(c + 1, TOTAL));
-    setEggIndex((i) => {
-      if (clicks < 5000) return i === 0 ? 1 : 0; // toggle egg01↔egg02
-      return i === 1 ? 2 : 1;                     // toggle egg02↔egg03
-    });
+    setEggIndex((i) =>
+      clicks < 5000
+        ? i === 0 ? 1 : 0   // toggle egg01↔egg02
+        : i === 1 ? 2 : 1   // toggle egg02↔egg03
+    );
 
     setSquish(false);
     setTimeout(() => setSquish(false), 120);
@@ -67,7 +68,7 @@ export default function Home() {
     pendingRef.current += 1;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(flush, 300);
-  }, [flush, isFinished]);
+  }, [flush, isFinished, clicks]);
 
   if (isFinished) {
     return (
